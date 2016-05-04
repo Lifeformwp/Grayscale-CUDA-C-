@@ -1,6 +1,6 @@
 # Grayscale-CUDA-C-
 
-This is my hobby project in which I'm trying to learn new stuff about concurrent computing. Concurrent computing is a form of computing in which several computations are executing during overlapping time periods.
+Hi! I'm Serhii Kondratiuk. This is my hobby project in which I'm trying to learn new stuff about concurrent computing. Concurrent computing is a form of computing in which several computations are executing during overlapping time periods.
 
 This project will have two versions, each of them in it own way.
 
