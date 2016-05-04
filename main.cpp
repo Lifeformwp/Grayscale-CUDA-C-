@@ -13,6 +13,7 @@
 using namespace std;
 using namespace cv;
 #define CYCLES 100
+#define IMGNUM 4
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -38,6 +39,38 @@ void faktorial(int InSize, unsigned char *DataIn, unsigned char *DataOut)// за
 
 int main() 
 {
+	
+	vector<Mat> images; 
+	vector<Mat> imagesgrey; 
+	for (int a=0; a<IMGNUM;a++) 
+	{
+
+		string name = format("C:\img%d.jpg", a+1); 
+		Mat img = imread(name); 
+		
+		if ( img.empty() ) 
+			{ 
+				cerr << "\nERROR: Can't be loaded image" << name << endl; 
+				continue; 
+			} 
+		Mat img3(img.rows,img.cols, CV_8UC1);
+		int SizeInImg = img.step * img.rows;
+		uchar* DataImg = img.data;
+		uchar* DataImg2 = img3.data;
+		faktorial(SizeInImg, DataImg, DataImg2);
+		images.push_back(img); 
+		imshow("Vector of imgs",img);
+		cvWaitKey(1000);
+		imagesgrey.push_back(img3); 
+		imshow("Vector of imgs",img3);
+		cvWaitKey(1000); 
+	}
+	 vector<Mat>::iterator it;
+
+    for (it = imagesgrey.begin(); it != imagesgrey.end() ; it++) {
+        imshow("myWin", (*it));
+        waitKey(0);
+    }
 		
 		
 		C_QPCTimer timerq_;
