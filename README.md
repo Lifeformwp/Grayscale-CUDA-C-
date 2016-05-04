@@ -9,7 +9,7 @@ In the first version (which I'm working on right now) of my programm I will use 
 So in the end of the second version (on which I'll work after the first one is done) of my programm I will get the data through the webcam using OpenCV, transform it (make it black and white or do anything else) using CUDA, OpenCL and C++ threads, and then save the output in a folder. This will truly show the potential of concurrent computing by using different tools and maybe someone will use it for his own sake.
 
 For now I have the following results:
-1) I've done loading/showing/saving images using up to date OpenCV C++ functional;
+1) loading/showing/saving images using up to date OpenCV C++ functional;
 2) A wrapper for working with CUDA;
 3) CUDA Malloc, Memcpy, "black-and-white" kernel, which processes images and gives the results back to the main.cpp;
 4) CPU part in main.cpp, just a small function which processes images on CPU;
