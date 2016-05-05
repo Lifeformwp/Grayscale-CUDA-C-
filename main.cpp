@@ -8,7 +8,7 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include "test.h"
-
+#include "functions.h"
 
 using namespace std;
 using namespace cv;
@@ -26,19 +26,10 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
    }
 }
 
-
-void faktorial(int InSize, unsigned char *DataIn, unsigned char *DataOut)// заголовок функции
-{
-	for(int i = 0,  j = 0; i < InSize; i += 3, j++)
-	{
-		DataOut[j] = (DataIn[i] + DataIn[i + 1] + DataIn[i + 2]) / 3;
-	}
-
-}
-
-
 int main() 
 {
+	
+	BlackWhiteImg	ClImage;
 	
 	vector<Mat> images; 
 	vector<Mat> imagesgrey; 
@@ -57,7 +48,9 @@ int main()
 		int SizeInImg = img.step * img.rows;
 		uchar* DataImg = img.data;
 		uchar* DataImg2 = img3.data;
-		faktorial(SizeInImg, DataImg, DataImg2);
+		ClImage.setData(SizeInImg, DataImg2, DataImg);
+		ClImage.Grayscale();
+		ClImage.getGrayscaleData();
 		images.push_back(img); 
 		imshow("Vector of imgs",img);
 		cvWaitKey(1000);
@@ -123,13 +116,15 @@ int main()
 		gpuErrchk(cudaMemcpy(par.devDatIn, par.DatIn, par.SizeIn * sizeof(unsigned char), cudaMemcpyHostToDevice));
 		gpuErrchk(cudaMemcpy(par.devDatOut, par.DatOut, par.SizeOut * sizeof(unsigned char), cudaMemcpyHostToDevice));
 
+		ClImage.setData(SizeIn, DataImg, DataImg2);
+		
 		timeStart_ = timerq_.GetTime();
 		for (int j = 0; j < CYCLES; j++)
 		{
-			faktorial(SizeIn, DataImg, DataImg2);
+			ClImage.Grayscale();
 		}
 		timeElapsed_ = timerq_.GetTime() - timeStart_;
-
+		ClImage.getGrayscaleData();
 		cout << "Average time CPU: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
 		
 		timeStart_ = timerq_.GetTime();
