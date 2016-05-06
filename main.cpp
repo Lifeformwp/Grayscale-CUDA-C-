@@ -29,7 +29,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 int main() 
 {
 	
-	BlackWhiteImg	ClImage;
+	BlackWhiteImg	*ClImage  = new BlackWhiteImg;
 	
 	vector<Mat> images; 
 	vector<Mat> imagesgrey; 
@@ -48,9 +48,9 @@ int main()
 		int SizeInImg = img.step * img.rows;
 		uchar* DataImg = img.data;
 		uchar* DataImg2 = img3.data;
-		ClImage.setData(SizeInImg, DataImg2, DataImg);
-		ClImage.Grayscale();
-		ClImage.getGrayscaleData();
+		ClImage->setData(SizeInImg, DataImg2, DataImg);
+		ClImage->Grayscale();
+		ClImage->getGrayscaleData();
 		images.push_back(img); 
 		imshow("Vector of imgs",img);
 		cvWaitKey(1000);
@@ -116,15 +116,15 @@ int main()
 		gpuErrchk(cudaMemcpy(par.devDatIn, par.DatIn, par.SizeIn * sizeof(unsigned char), cudaMemcpyHostToDevice));
 		gpuErrchk(cudaMemcpy(par.devDatOut, par.DatOut, par.SizeOut * sizeof(unsigned char), cudaMemcpyHostToDevice));
 
-		ClImage.setData(SizeIn, DataImg, DataImg2);
+		ClImage->setData(SizeIn, DataImg, DataImg2);
 		
 		timeStart_ = timerq_.GetTime();
 		for (int j = 0; j < CYCLES; j++)
 		{
-			ClImage.Grayscale();
+			ClImage->Grayscale();
 		}
 		timeElapsed_ = timerq_.GetTime() - timeStart_;
-		ClImage.getGrayscaleData();
+		ClImage->getGrayscaleData();
 		cout << "Average time CPU: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
 		
 		timeStart_ = timerq_.GetTime();
