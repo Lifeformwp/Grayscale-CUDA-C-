@@ -1,5 +1,8 @@
 # Grayscale-CUDA-C-
+Update 1:
+Added Grayscale Luminosity, Average, Lightness, classes for data processing, derived classes for converting color to grayscale, CUDA streams
 
+Original:
 Hi! I'm Serhii Kondratiuk. This is my hobby project in which I'm trying to learn new stuff about concurrent computing. Concurrent computing is a form of computing in which several computations are executing during overlapping time periods.
 
 This project will have two versions, each of them in it own way.
