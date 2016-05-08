@@ -11,7 +11,6 @@
 #include <vector>
 #include "functions.h"
 
-//
 using namespace std;
 using namespace cv;
 #define CYCLES 100
