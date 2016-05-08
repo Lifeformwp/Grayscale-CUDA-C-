@@ -14,15 +14,13 @@ __global__ void imagegray(unsigned char *DataIn, unsigned char *DataOut)
     DataOut[idx] = (unsigned int)((DataIn[3*idx] + DataIn[3*idx+1] + DataIn[3*idx+2])/3);
 }
 
-extern "C" int my_cuda1(unsigned char *devDatIn, unsigned char *devDatOut, int NumBlocksX, int NumThreadsX)
+extern "C" int my_cuda1(unsigned char *devDatIn, unsigned char *devDatOut, int NumBlocksX, int NumThreadsX, unsigned char *chard)
 {
 	dim3 blocks(NumBlocksX, 1, 1);
 	dim3 threads(NumThreadsX, 1, 1);
+	cudaStream_t stream = (cudaStream_t)chard;
 
-	imagegray <<< blocks, threads >>> (devDatIn, devDatOut);
+	imagegray <<< blocks, threads, 0, stream >>> (devDatIn, devDatOut);
 
 	return 0;
 }
-
-
-
