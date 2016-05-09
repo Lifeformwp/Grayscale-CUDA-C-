@@ -11,6 +11,7 @@
 #include <vector>
 #include "functions.h"
 
+
 using namespace std;
 using namespace cv;
 #define CYCLES 100
@@ -33,8 +34,11 @@ int main()
 	Grayscale *GS = new Grayscale;
 	double timeStart_, timeElapsed_;
 	int i = 0, k = 0, m = 0;
-	int AlgorNum = 0;
+	int AlgorNum = 0, GPUnum = 0;
 	bool repeat = false;
+	bool returned = false;
+
+
 	cudaDeviceProp deviceProp;
 	cudaGetDeviceProperties(&deviceProp, 0);
 	string str;
@@ -70,10 +74,11 @@ int main()
 		waitKey(1000);
 		ImageAmount++;
 	}
+	destroyWindow("Vector of imgs");
 	vector<Mat>::iterator itcpu;
 	vector<Mat>::iterator itcpu2;
 do{
-	cout <<"Input number of algorithm for converting color to grayscale" <<endl << "1 - Luminosity" <<endl <<"2 - Lightness" <<endl<< "3 - Average"<<endl;
+	cout <<"Input number of algorithm for CPU converting color to grayscale" <<endl << "1 - Luminosity" <<endl <<"2 - Lightness" <<endl<< "3 - Average"<<endl;
 	cin >>AlgorNum;
 	switch(AlgorNum)
 	{
@@ -94,12 +99,14 @@ do{
 			waitKey(1000);
 			repeat = false;
 		}
+		destroyWindow("CPU Grayscale Luminosity");
 		break;
 		
 	case 2:
 		for(itcpu=images.begin(), itcpu2=imagesgreycpu.begin(); itcpu!=images.end(),itcpu2!=imagesgreycpu.end(); itcpu++,itcpu2++)
 		{
 			GS->setData(itcpu, itcpu2, NumThreadX);
+			timeStart_ = timerq_.GetTime();
 			for (int k = 0; k<CYCLES;k++)
 			{
 			GS->GSLightness();
@@ -110,12 +117,14 @@ do{
 			waitKey(1000);
 			repeat = false;
 		}
+		destroyWindow("CPU Grayscale Lightness");
 		break;
 
 	case 3:
 		for(itcpu=images.begin(), itcpu2=imagesgreycpu.begin();itcpu!=images.end(),itcpu2!=imagesgreycpu.end();itcpu++,itcpu2++)
 		{
 			GS->setData(itcpu, itcpu2, NumThreadX);
+			timeStart_ = timerq_.GetTime();
 			for (int k = 0; k<CYCLES;k++)
 			{
 			GS->GSAverage();
@@ -126,6 +135,7 @@ do{
 			waitKey(1000);
 			repeat = false;
 		}
+		destroyWindow("CPU Grayscale Average");
 		break;
 	default:
 		cout<<"Incorrect input"<<endl;
@@ -148,19 +158,26 @@ do{
 
 
 	params par;
-
+	cout <<"Input number of algorithm for GPU converting color to grayscale" <<endl << "1 - Luminosity" <<endl <<"2 - Lightness" <<endl<< "3 - Average"<<endl;
+	cin >>GPUnum;
 	for (k, it=images.begin(), it2=imagesgrey.begin();k<ImageAmount,it!=images.end(),it2!=imagesgrey.end();k++, it++, it2++) {
 		ImageWork->setData(it, it2, NumThreadX);
 		par.chard = (unsigned char*)stream[k];
 		
 		
-		cudaMalloc((void**)&par.devDatIn, ImageWork->SizeINImg * sizeof(unsigned char));
-		cudaMalloc((void**)&par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char));
+		gpuErrchk(cudaMalloc((void**)&par.devDatIn, ImageWork->SizeINImg * sizeof(unsigned char)));
+		gpuErrchk(cudaMalloc((void**)&par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char)));
+	
+		gpuErrchk(cudaMemcpyAsync(par.devDatIn, ImageWork->DataImg, ImageWork->SizeINImg * sizeof(unsigned char), cudaMemcpyHostToDevice,stream[k+1]));
+		gpuErrchk(cudaStreamSynchronize(stream[k+1]));
+		gpuErrchk(cudaMemcpyAsync(par.devDatOut, ImageWork->DataImg2, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyHostToDevice, stream[k+2]));
+		gpuErrchk(cudaStreamSynchronize(stream[k+2]));
 
-		cudaMemcpyAsync(par.devDatIn, ImageWork->DataImg, ImageWork->SizeINImg * sizeof(unsigned char), cudaMemcpyHostToDevice,stream[k+1]);
-		cudaStreamSynchronize(stream[k+1]);
-		cudaMemcpyAsync(par.devDatOut, ImageWork->DataImg2, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyHostToDevice, stream[k+2]);
-		cudaStreamSynchronize(stream[k+2]);
+
+do{
+	switch(GPUnum)
+	{
+	case 1:
 		timeStart_ = timerq_.GetTime();
 		for (int a = 0; a < CYCLES; a++)
 		{
@@ -168,19 +185,56 @@ do{
 		cudaStreamSynchronize(stream[k]);
 		}
 		timeElapsed_ = timerq_.GetTime() - timeStart_;
-		cout << "Average time GPU: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
-		cudaMemcpyAsync(ImageWork->DataImg2, par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyDeviceToHost, stream[k+3]);
-		cudaStreamSynchronize(stream[k+3]);
+		cout << "Average time GPU Luminosity: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
+		returned = false;
+		GPUnum = 1;
+		break;
+
+	case 2:
+		timeStart_ = timerq_.GetTime();
+		for (int a = 0; a < CYCLES; a++)
+		{
+		my_cuda2(par.devDatIn, par.devDatOut, ImageWork->BlocksNumber, NumThreadX, par.chard);
+		cudaStreamSynchronize(stream[k]);
+		}
+		timeElapsed_ = timerq_.GetTime() - timeStart_;
+		cout << "Average time GPU Lightness: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
+		returned = false;
+		GPUnum = 2;
+		break;
+
+	case 3:
+		timeStart_ = timerq_.GetTime();
+		for (int a = 0; a < CYCLES; a++)
+		{
+		my_cuda3(par.devDatIn, par.devDatOut, ImageWork->BlocksNumber, NumThreadX, par.chard);
+		cudaStreamSynchronize(stream[k]);
+		}
+		timeElapsed_ = timerq_.GetTime() - timeStart_;
+		cout << "Average time GPU Average: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
+		returned = false;
+		break;
+    default:
+		cout<<"Incorrect input"<<endl;
+		repeat = true;
+		break;
+	}
+		}while (returned == true);
+
+		gpuErrchk(cudaMemcpyAsync(ImageWork->DataImg2, par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyDeviceToHost, stream[k+3]));
+		gpuErrchk(cudaStreamSynchronize(stream[k+3]));
 	}
 
 	for (it=images.begin(), it2=imagesgrey.begin();i<ImageAmount,it!=images.end(),it2!=imagesgrey.end();it++, it2++) 
 	{
                 
 			imshow("myWinMemcpy", (*it));
-			 waitKey(100);
+			 waitKey(1000);
 			  imshow("myWinMemcpy", (*it2));
-			 waitKey(100);
+			 waitKey(1000);
 	}
+	destroyWindow("myWinMemcpy");
+
 
 	for (m; m < ImageAmount; m++) {
                 cudaStreamDestroy(stream[m]);
@@ -209,6 +263,7 @@ do{
           return -1;
      }
 		Mat imgsingle2(imgsingle.rows,imgsingle.cols, CV_8UC1);
+		Mat imgsinglecpu(imgsingle.rows,imgsingle.cols, CV_8UC1);
 		ImageWork->setDataSingle(imgsingle, imgsingle2, NumThreadX);
 
 		printf("Allocating memory on Device\n");
@@ -219,22 +274,73 @@ do{
 		gpuErrchk(cudaMemcpy(par.devDatIn, ImageWork->DataImg, ImageWork->SizeINImg * sizeof(unsigned char), cudaMemcpyHostToDevice));
 		gpuErrchk(cudaMemcpy(par.devDatOut, ImageWork->DataImg2, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyHostToDevice));
 		
-		/*timeStart_ = timerq_.GetTime();
-		for (int j = 0; j < CYCLES; j++)
-		{
-			
-		}
-		timeElapsed_ = timerq_.GetTime() - timeStart_;
-		cout << "Average time CPU: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
-		*/
+
+		do{
+	cout <<"Input number of algorithm for converting color to grayscale" <<endl << "1 - Luminosity" <<endl <<"2 - Lightness" <<endl<< "3 - Average"<<endl;
+	cin >>AlgorNum;
+	switch(AlgorNum)
+	{
+	case 1:
+			GS->setDataSingle(imgsingle, imgsinglecpu, NumThreadX);
+			timeStart_ = timerq_.GetTime();
+			for (int k = 0; k<CYCLES;k++)
+			{
+			GS->GSLuminosity();
+			}
+			timeElapsed_ = timerq_.GetTime() - timeStart_;
+			cout << "Average time SingleCPU Luminosity: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
+			imshow("CPU Grayscale Luminosity",(imgsinglecpu));
+			waitKey(0);
+			repeat = false;
+			destroyWindow("CPU Grayscale Luminosity");
+		break;
+		
+	case 2:	
+			GS->setDataSingle(imgsingle, imgsinglecpu, NumThreadX);
+			timeStart_ = timerq_.GetTime();
+			for (int k = 0; k<CYCLES;k++)
+			{
+			GS->GSLightness();
+			}
+			timeElapsed_ = timerq_.GetTime() - timeStart_;
+			cout << "Average time SingleCPU Lightness: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;			
+			imshow("CPU Grayscale Lightness",(imgsinglecpu));
+			waitKey(0);
+			repeat = false;
+			destroyWindow("CPU Grayscale Lightness");
+		break;
+
+	case 3:
+		
+			GS->setDataSingle(imgsingle, imgsinglecpu, NumThreadX);
+			timeStart_ = timerq_.GetTime();
+			for (int k = 0; k<CYCLES;k++)
+			{
+			GS->GSAverage();
+			}
+			timeElapsed_ = timerq_.GetTime() - timeStart_;
+			cout << "Average time SingleCPU Lightness: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;				
+			imshow("CPU Grayscale Average",(imgsinglecpu));
+			waitKey(0);
+			repeat = false;
+			destroyWindow("CPU Grayscale Average");
+		break;
+	default:
+		cout<<"Incorrect input"<<endl;
+		repeat = true;
+		break;
+	}
+	}while(repeat == true);
+		
 		timeStart_ = timerq_.GetTime();
+
 		for (int j = 0; j < CYCLES; j++)
 		{
 			my_cuda1(par.devDatIn, par.devDatOut, ImageWork->BlocksNumber, NumThreadX, 0);
-		cudaMemcpy(ImageWork->DataImg2, par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 		}
 		timeElapsed_ = timerq_.GetTime() - timeStart_;
 		cout << "Average time GPU: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
+		gpuErrchk(cudaMemcpy(ImageWork->DataImg2, par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyDeviceToHost));
 
 		cudaFree(par.devDatOut);
 		cudaFree(par.devDatIn);
@@ -244,8 +350,11 @@ do{
 
 		namedWindow("Gray image", CV_WINDOW_AUTOSIZE); //create a window with the name "MyWindow"
 		imshow("Gray image", imgsingle2);
+		
 		waitKey(0);
+		destroyAllWindows();
 		delete ImageWork;
 		delete GS;
         return 0;
 }
+
