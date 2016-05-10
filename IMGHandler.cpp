@@ -1,4 +1,4 @@
-#include "functions.h"
+#include "IMGHandler.h"
 
 	void ImgWork::setData(vector<Mat>::iterator img, vector<Mat>::iterator img3, int NumThreadX)
 	{
@@ -45,6 +45,7 @@
 	{
 		for(int i = 0,  j = 0; i < SizeINImg; i += 3, j++)
 		{
+			/*DataImg2[j] = DataImg[i + 1];*/
 			DataImg2[j] = ((0.21 * DataImg[i]) + (0.72 * DataImg[i + 1]) + (0.07 * DataImg[i + 2]));
 		}
 	}
@@ -57,4 +58,3 @@
 			DataImg2[j] = (DataImg[i] + DataImg[i + 1] + DataImg[i + 2])/3;
 		}
 	}
-
