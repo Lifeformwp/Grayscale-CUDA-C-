@@ -13,9 +13,7 @@ public:
 	int BlocksNumber, BlocksNumber2;
 	int SizeOutImg, SizeOutImg2;
 	unsigned char* DataImg;
-	unsigned char* DataImg2;
-	unsigned char* DataImg1;
-	unsigned char* DataImg22;	
+	unsigned char* DataImg2;	
 
 	void setData(vector<Mat>::iterator img, vector<Mat>::iterator img3, int NumThreadX);
 	void setDataSingle(Mat img, Mat img3, int NumThreadX);
