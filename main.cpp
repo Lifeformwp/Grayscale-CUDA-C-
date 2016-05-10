@@ -9,7 +9,7 @@
 #include "device_launch_parameters.h"
 #include "test.h"
 #include <vector>
-#include "functions.h"
+#include "IMGHandler.h"
 
 
 using namespace std;
@@ -278,6 +278,8 @@ do{
 		do{
 	cout <<"Input number of algorithm for converting color to grayscale" <<endl << "1 - Luminosity" <<endl <<"2 - Lightness" <<endl<< "3 - Average"<<endl;
 	cin >>AlgorNum;
+	do{
+	
 	switch(AlgorNum)
 	{
 	case 1:
@@ -331,24 +333,60 @@ do{
 		break;
 	}
 	}while(repeat == true);
-		
-		timeStart_ = timerq_.GetTime();
 
-		for (int j = 0; j < CYCLES; j++)
+
+	switch(AlgorNum)
+	{
+	case 1:
+		timeStart_ = timerq_.GetTime();
+		for (int a = 0; a < CYCLES; a++)
 		{
-			my_cuda1(par.devDatIn, par.devDatOut, ImageWork->BlocksNumber, NumThreadX, 0);
+		my_cuda1(par.devDatIn, par.devDatOut, ImageWork->BlocksNumber, NumThreadX, 0);
 		}
 		timeElapsed_ = timerq_.GetTime() - timeStart_;
-		cout << "Average time GPU: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
+		cout << "Average time GPU Luminosity single image: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
+		returned = false;
+		GPUnum = 1;
+		break;
+
+	case 2:
+		timeStart_ = timerq_.GetTime();
+		for (int a = 0; a < CYCLES; a++)
+		{
+		my_cuda2(par.devDatIn, par.devDatOut, ImageWork->BlocksNumber, NumThreadX, 0);
+		}
+		timeElapsed_ = timerq_.GetTime() - timeStart_;
+		cout << "Average time GPU Lightness single image: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
+		returned = false;
+		GPUnum = 2;
+		break;
+
+	case 3:
+		timeStart_ = timerq_.GetTime();
+		for (int a = 0; a < CYCLES; a++)
+		{
+		my_cuda3(par.devDatIn, par.devDatOut, ImageWork->BlocksNumber, NumThreadX, 0);
+		}
+		timeElapsed_ = timerq_.GetTime() - timeStart_;
+		cout << "Average time GPU Average single image: " << (timeElapsed_ / (double)CYCLES) << " ms" << endl;
+		returned = false;
+		break;
+    default:
+		cout<<"Incorrect input"<<endl;
+		repeat = true;
+		break;
+	}
+		}while (returned == true);
+	
 		gpuErrchk(cudaMemcpy(ImageWork->DataImg2, par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyDeviceToHost));
 
 		cudaFree(par.devDatOut);
 		cudaFree(par.devDatIn);
 
-		namedWindow("Color image", CV_WINDOW_AUTOSIZE); //create a window with the name "MyWindow"
+		namedWindow("Color image", CV_WINDOW_AUTOSIZE);
 		imshow("Color image", imgsingle);
 
-		namedWindow("Gray image", CV_WINDOW_AUTOSIZE); //create a window with the name "MyWindow"
+		namedWindow("Gray image", CV_WINDOW_AUTOSIZE);
 		imshow("Gray image", imgsingle2);
 		
 		waitKey(0);
@@ -357,4 +395,3 @@ do{
 		delete GS;
         return 0;
 }
-
