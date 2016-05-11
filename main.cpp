@@ -27,30 +27,314 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
    }
 }
 
-
 int main() 
 {
+	//Initialize timer
+	C_QPCTimer timerq_;
+	timerq_.Initialize();
+	double timeStart_, timeElapsed_;
+
+	//Initialize classes
 	ImgWork *ImageWork = new ImgWork;
 	Grayscale *GS = new Grayscale;
-	double timeStart_, timeElapsed_;
-	int i = 0, k = 0, m = 0;
-	int AlgorNum = 0, GPUnum = 0;
+
+	//Initialize CudaDevice
+	cudaDeviceProp deviceProp;
+	cudaGetDeviceProperties(&deviceProp, 0);
+
+	int i = 0, k = 0, m = 0; //for loop image variables
+	int AlgorNum = 0, GPUnum = 0, WebCamNum = 0, ImageAmount = 0; //switch variables
+
+	//while bools
 	bool repeat = false;
 	bool returned = false;
 
 
-	cudaDeviceProp deviceProp;
-	cudaGetDeviceProperties(&deviceProp, 0);
-	string str;
-	getline(cin, str);
-	C_QPCTimer timerq_;
-	timerq_.Initialize();
-	int ImageAmount = 0;
-	vector<Mat> images; 
-	vector<Mat> imagesgrey; 
-	vector<Mat> imagesgreycpu;
-	vector<cudaStream_t> Streams;
-	int NumThreadX = deviceProp.maxThreadsPerBlock;
+	
+	string str; //single img variable path
+	printf("Input source of image\n Example of right directory file: E:\henrik-evensen-castle-valley-v03.jpg\n Your turn:\n");
+	getline(cin, str); //get single img path
+
+	vector<Mat> images; //vector for color images
+	vector<Mat> imagesgrey; //vector for greygpu images
+	vector<Mat> imagesgreycpu; //vector for greycpu images
+	vector<cudaStream_t> Streams; //vector for CUDA streams
+
+	
+	cudaStream_t* streames = new cudaStream_t[15]; //allocating amount of streams
+	//creating streams
+	for (int i = 0; i < 5;i++) {
+                cudaStreamCreate(&streames[i]);
+	}
+	
+	
+	int NumThreadX = deviceProp.maxThreadsPerBlock; //number of available CUDAthreads
+
+	Mat input; //variable webcam original image
+	Mat frame; //variable webcam grey image
+
+	VideoCapture stream1(0);   //0 is the id of video device.0 if you have only one camera.
+	char strfps[64] = "0 fps"; //fps webcam
+	char strsec[64] = "0 sec"; //estimated time
+	if (!stream1.isOpened())  //check if video device has been initialised
+	{
+		cout << "cannot open camera";
+	}
+
+	clock_t start = clock(); //start fps
+
+	unsigned int fps = 0; //fps amount
+
+	params par; //struct variables
+
+	double time = 0; //elapsed time
+
+	bool rpt = true; // bool for while loops
+
+														/*GPU WEB CAM PROCESSING*/
+
+	cout <<"Input number of algorithm for GPU converting color to grayscale" <<endl << "1 - Luminosity" <<endl <<"2 - Lightness" <<endl<< "3 - Average"<<endl;
+	cin >>WebCamNum;
+	switch(WebCamNum)
+	{
+	case 1:
+		
+		while (true) {
+	stream1.read(input);
+	Mat frame(input.rows, input.cols, CV_8UC1);
+	ImageWork->setDataSingle(input, frame, NumThreadX);
+
+		
+		gpuErrchk(cudaMalloc((void**)&par.devDatIn, ImageWork->SizeINImg * sizeof(unsigned char)));
+		gpuErrchk(cudaMalloc((void**)&par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char)));
+
+		timeStart_ = timerq_.GetTime();
+		gpuErrchk(cudaMemcpy(par.devDatIn, ImageWork->DataImg, ImageWork->SizeINImg * sizeof(unsigned char), cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMemcpy(par.devDatOut, ImageWork->DataImg2, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyHostToDevice));
+		
+my_cuda1(par.devDatIn, par.devDatOut, ImageWork->BlocksNumber, NumThreadX, 0);
+
+		gpuErrchk(cudaMemcpy(ImageWork->DataImg2, par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyDeviceToHost));
+		timeElapsed_ = timerq_.GetTime() - timeStart_;
+		time = (timeElapsed_ / (double)1);
+			cout << "Average time GPU Luminosity: " << time << " ms" << endl;
+			sprintf (strsec, "Average time %f ms", time);
+		cudaFree(par.devDatOut);
+		cudaFree(par.devDatIn);
+		fps++;
+	if(clock() - start > CLOCKS_PER_SEC)
+	{
+		sprintf(strfps, "GPU Luminosity %d fps", fps);
+		fps = 0;
+		start = clock();
+	}
+
+	putText(frame, strsec, cv::Point(0,20), 2, 0.8,(0,0, 0));
+	putText(frame, strfps, cv::Point(0,40), 2, 0.8,(0,0, 0));
+	imshow("cam", frame);
+	if (waitKey(30) >= 0)
+	{
+	rpt = false;
+	destroyWindow("cam");
+	break;
+	}
+	}
+	rpt = false;	
+	break;
+	case 2:
+		while (true) {
+	stream1.read(input);
+Mat frame(input.rows, input.cols, CV_8UC1);
+	ImageWork->setDataSingle(input, frame, NumThreadX);
+
+		
+		gpuErrchk(cudaMalloc((void**)&par.devDatIn, ImageWork->SizeINImg * sizeof(unsigned char)));
+		gpuErrchk(cudaMalloc((void**)&par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char)));
+
+		timeStart_ = timerq_.GetTime();
+		gpuErrchk(cudaMemcpy(par.devDatIn, ImageWork->DataImg, ImageWork->SizeINImg * sizeof(unsigned char), cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMemcpy(par.devDatOut, ImageWork->DataImg2, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyHostToDevice));
+		
+my_cuda2(par.devDatIn, par.devDatOut, ImageWork->BlocksNumber, NumThreadX, 0);
+
+		gpuErrchk(cudaMemcpy(ImageWork->DataImg2, par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyDeviceToHost));
+		timeElapsed_ = timerq_.GetTime() - timeStart_;
+		time = (timeElapsed_ / (double)1);
+			cout << "Average time GPU Lightness: " << time << " ms" << endl;
+			sprintf (strsec, "Average time %f ms", time);
+		cudaFree(par.devDatOut);
+		cudaFree(par.devDatIn);
+		fps++;
+	if(clock() - start > CLOCKS_PER_SEC)
+	{
+		sprintf(strfps, "GPU Lightness %d fps", fps);
+		fps = 0;
+		start = clock();
+	}
+
+	putText(frame, strsec, cv::Point(0,20), 2, 0.8,(0,0, 0));
+	putText(frame, strfps, cv::Point(0,40), 2, 0.8,(0,0, 0));
+	imshow("cam", frame);
+	if (waitKey(30) >= 0)
+	{
+	rpt = false;
+	destroyWindow("cam");
+	break;
+	}
+	}
+	break;
+	rpt = false;
+	case 3:
+		while (true) {
+	stream1.read(input);
+Mat frame(input.rows, input.cols, CV_8UC1);
+	ImageWork->setDataSingle(input, frame, NumThreadX);
+
+		
+		gpuErrchk(cudaMalloc((void**)&par.devDatIn, ImageWork->SizeINImg * sizeof(unsigned char)));
+		gpuErrchk(cudaMalloc((void**)&par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char)));
+
+		timeStart_ = timerq_.GetTime();
+		gpuErrchk(cudaMemcpy(par.devDatIn, ImageWork->DataImg, ImageWork->SizeINImg * sizeof(unsigned char), cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMemcpy(par.devDatOut, ImageWork->DataImg2, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyHostToDevice));
+		
+my_cuda3(par.devDatIn, par.devDatOut, ImageWork->BlocksNumber, NumThreadX, 0);
+
+		gpuErrchk(cudaMemcpy(ImageWork->DataImg2, par.devDatOut, ImageWork->SizeOutImg * sizeof(unsigned char), cudaMemcpyDeviceToHost));
+		timeElapsed_ = timerq_.GetTime() - timeStart_;
+		time = (timeElapsed_ / (double)1);
+			cout << "Average time GPU Average: " << time << " ms" << endl;
+			sprintf (strsec, "Average time %f ms", time);
+		cudaFree(par.devDatOut);
+		cudaFree(par.devDatIn);
+		fps++;
+	if(clock() - start > CLOCKS_PER_SEC)
+	{
+		sprintf(strfps, "GPU Average %d fps", fps);
+		fps = 0;
+		start = clock();
+	}
+
+	putText(frame, strsec, cv::Point(0,20), 2, 0.8,(0,0, 0));
+	putText(frame, strfps, cv::Point(0,40), 2, 0.8,(0,0, 0));
+	imshow("cam", frame);
+	if (waitKey(30) >= 0)
+	{
+	rpt = false;
+	destroyWindow("cam");
+	break;
+	}
+		rpt = false;
+		}
+		break;
+		 default:
+		cout<<"Incorrect input"<<endl;
+		rpt = true;
+		break;
+	}
+
+
+															/*CPU WEB CAM PROCESSING*/
+		cout <<"Input number of algorithm for CPU converting color to grayscale" <<endl << "1 - Luminosity" <<endl <<"2 - Lightness" <<endl<< "3 - Average"<<endl;
+	cin >>WebCamNum;
+	switch(WebCamNum)
+	{
+	case 1:
+			while (true) {
+	stream1.read(input);
+	Mat frame(input.rows, input.cols, CV_8UC1);
+	GS->setDataSingle(input, frame, NumThreadX);
+	timeStart_ = timerq_.GetTime();
+	GS->GSLuminosity();
+	timeElapsed_ = timerq_.GetTime() - timeStart_;
+		time = (timeElapsed_ / (double)1);
+				cout << "Average time CPU Luminosity: " << time << " ms" << endl;
+				sprintf (strsec, "Average time %f ms", time);
+
+	fps++;
+		if(clock() - start > CLOCKS_PER_SEC)
+		{
+			sprintf(strfps, "%d fps", fps);
+			fps = 0;
+			start = clock();
+		}
+	putText(frame, strsec, cv::Point(0,20), 2, 0.8,(0,0, 0));
+	putText(frame, strfps, cv::Point(0,40), 2, 0.8,(0,0, 0));
+	imshow("cam", frame);
+		if (waitKey(30) >= 0)
+		{
+		rpt = false;
+		destroyWindow("cam");
+		break;
+		}
+	}
+				break;
+
+		case 2:
+			while (true) {
+	stream1.read(input);
+	Mat frame(input.rows, input.cols, CV_8UC1);
+	GS->setDataSingle(input, frame, NumThreadX);
+	timeStart_ = timerq_.GetTime();
+	GS->GSLightness();
+	timeElapsed_ = timerq_.GetTime() - timeStart_;
+		time = (timeElapsed_ / (double)1);
+				cout << "Average time CPU Lightness: " << time << " ms" << endl;
+				sprintf (strsec, "Average time %f ms", time);
+	fps++;
+		if(clock() - start > CLOCKS_PER_SEC)
+		{
+			sprintf(strfps, "%d fps", fps);
+			fps = 0;
+			start = clock();
+		}
+	putText(frame, strsec, cv::Point(0,20), 2, 0.8,(0,0, 0));
+	putText(frame, strfps, cv::Point(0,40), 2, 0.8,(0,0, 0));
+	imshow("cam", frame);
+		if (waitKey(30) >= 0)
+		{
+		rpt = false;
+		destroyWindow("cam");
+		break;
+		}
+	}
+			break;
+		case 3:
+			while (true) {
+	stream1.read(input);
+	Mat frame(input.rows, input.cols, CV_8UC1);
+	GS->setDataSingle(input, frame, NumThreadX);
+	timeStart_ = timerq_.GetTime();
+	GS->GSAverage();
+	timeElapsed_ = timerq_.GetTime() - timeStart_;
+		time = (timeElapsed_ / (double)1);
+				cout << "Average time CPU Average: " << time << " ms" << endl;
+				sprintf (strsec, "Average time %f ms", time);
+	fps++;
+		if(clock() - start > CLOCKS_PER_SEC)
+		{
+			sprintf(strfps, "%d fps", fps);
+			fps = 0;
+			start = clock();
+		}
+	putText(frame, strsec, cv::Point(0,20), 2, 0.8,(0,0, 0));
+	putText(frame, strfps, cv::Point(0,40), 2, 0.8,(0,0, 0));
+	imshow("cam", frame);
+		if (waitKey(30) >= 0)
+		{
+		rpt = false;
+		destroyWindow("cam");
+		break;
+		}
+	}
+			break;
+		}
+
+
+
+													/*Processing bunch of images*/
+
+	
 
 	for (int a=0; a<100;a++) 
 	{
@@ -147,8 +431,6 @@ do{
 	vector<Mat>::iterator it;
 	vector<Mat>::iterator it2;
 	cudaStream_t* stream = new cudaStream_t[15];
-	unsigned char* DevDat = new unsigned char[1024];
-	unsigned char* DevOut = new unsigned char[1024];
 	for (i; i < ImageAmount;i++) {
                 cudaStreamCreate(&stream[i]);
 				cudaStreamCreate(&stream[i+1]);
@@ -156,8 +438,6 @@ do{
 				cudaStreamCreate(&stream[i+3]);
 	}
 
-
-	params par;
 	cout <<"Input number of algorithm for GPU converting color to grayscale" <<endl << "1 - Luminosity" <<endl <<"2 - Lightness" <<endl<< "3 - Average"<<endl;
 	cin >>GPUnum;
 	for (k, it=images.begin(), it2=imagesgrey.begin();k<ImageAmount,it!=images.end(),it2!=imagesgrey.end();k++, it++, it2++) {
@@ -248,12 +528,12 @@ do{
 		E:\Assassin.jpg
 		C:\Users\Sergey\Documents\Visual Studio 2012\Projects\CudamyExample\3840x2160.bmp*/
 		_getch();
+
+													/*Processing custom single image*/
 		printf("CUDA device [%s] has %d Multi-Processors, Compute %d.%d\n Grid Size %d\n",
         deviceProp.name, deviceProp.multiProcessorCount, deviceProp.major, deviceProp.minor, deviceProp.maxGridSize);
 
-		printf("Input source of image\n Example of right directory file: E:\henrik-evensen-castle-valley-v03.jpg\n Your turn:\n");
 		
-		cout<< endl << "Your image: " << str << endl;
 
 		//Data for input image
 		Mat imgsingle = imread(str, CV_LOAD_IMAGE_COLOR);
