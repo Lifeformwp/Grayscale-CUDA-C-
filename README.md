@@ -1,6 +1,6 @@
 # Grayscale-CUDA-C-
 Update 2:
-Added webcam integration, proccesing data from it and converting color image (GPU/CPU) to LuminosityGrayscale, AverageGrayscale orLightnessGrayscale.
+Added webcam integration, proccesing data from it and converting color image (GPU/CPU) to LuminosityGrayscale, AverageGrayscale or LightnessGrayscale.
 
 Update 1:
 Added Grayscale Luminosity, Average, Lightness, classes for data processing, derived classes for converting color to grayscale, CUDA streams
